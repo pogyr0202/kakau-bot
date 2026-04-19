@@ -11,7 +11,7 @@ def send_line_message(message):
     user_id = os.environ.get("USER_ID")
     
     if not token or not user_id:
-        print("Error: LINE_CHANNEL_ACCESS_TOKEN or USER_ID is not set.")
+        print("❌ エラー: 設定（Secrets）が正しく読み込めていません。")
         return
 
     headers = {
@@ -31,27 +31,41 @@ def send_line_message(message):
     
     try:
         response = requests.post(url, headers=headers, json=payload)
+        print(f"LINE API Response Status: {response.status_code}")
         response.raise_for_status()
-        print("LINE message sent successfully!")
+        print("✅ LINEへのメッセージ送信に成功しました！")
     except Exception as e:
-        print(f"Failed to send LINE message: {e}")
+        print(f"❌ LINEへのメッセージ送信に失敗しました: {e}")
+        if response is not None:
+            print(f"詳細エラー内容: {response.text}")
 
 def check_price():
     """価格をチェックするメイン処理"""
-    target_url = "https://kakaku.com/item/K0001540961/" # 例として価格.comのURL
+    target_url = "https://kakaku.com/item/K0001540961/" 
     
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_depth_page() if hasattr(browser, 'new_depth_page') else browser.new_page()
+        # 警告が出にくいコンテキスト作成
+        context = browser.new_context()
+        page = context.new_page()
         
         try:
-            page.goto(target_url)
-            # 価格情報を取得（サイトの構造に合わせて調整してください）
-            price = page.locator('.price').first.inner_text()
-            message = f"\n現在の価格は {price} です。\n{target_url}"
-            send_line_message(message)
+            print(f"URLにアクセス中: {target_url}")
+            page.goto(target_url, wait_until="domcontentloaded")
+            
+            # 価格情報を取得（サイトの仕様変更に強い複数のセレクタで試行）
+            price_element = page.locator('span.priceTxt, .price, #price, .p-main_price_value').first
+            
+            if price_element.is_visible():
+                price = price_element.inner_text().strip()
+                message = f"【価格通知】\n現在の価格は {price} です。\n{target_url}"
+                print(f"取得メッセージ: {message}")
+                send_line_message(message)
+            else:
+                raise Exception("価格の要素が見つかりませんでした。")
+                
         except Exception as e:
-            error_msg = f"\n価格取得エラーが発生しました:\n{str(e)}"
+            error_msg = f"⚠️ 価格取得中にエラーが発生しました:\n{str(e)}"
             print(error_msg)
             send_line_message(error_msg)
         finally:

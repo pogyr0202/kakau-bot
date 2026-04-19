@@ -9,10 +9,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      # 最新のバージョン(v4)にアップデート
+      - uses: actions/checkout@v4
 
+      # 最新のバージョン(v5)にアップデート
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
@@ -23,7 +25,6 @@ jobs:
 
       - name: Run bot
         env:
-          # GitHubのSettings > Secretsに登録した名前と一致させる
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           USER_ID: ${{ secrets.USER_ID }}
         run: python main_bot.py
