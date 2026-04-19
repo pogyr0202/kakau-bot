@@ -10,8 +10,13 @@ def send_line_message(message):
     token = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
     user_id = os.environ.get("USER_ID")
     
+    # どちらの設定が足りないかログに出力
+    if not token:
+        print("❌ エラー: LINE_CHANNEL_ACCESS_TOKEN がSecretsに設定されていません。")
+    if not user_id:
+        print("❌ エラー: USER_ID がSecretsに設定されていません。")
+    
     if not token or not user_id:
-        print("❌ エラー: 設定（Secrets）が正しく読み込めていません。")
         return
 
     headers = {
@@ -21,51 +26,64 @@ def send_line_message(message):
     
     payload = {
         "to": user_id,
-        "messages": [
-            {
-                "type": "text",
-                "text": message
-            }
-        ]
+        "messages": [{"type": "text", "text": message}]
     }
     
     try:
         response = requests.post(url, headers=headers, json=payload)
         print(f"LINE API Response Status: {response.status_code}")
+        if response.status_code != 200:
+            print(f"LINEからのエラーメッセージ: {response.text}")
         response.raise_for_status()
         print("✅ LINEへのメッセージ送信に成功しました！")
     except Exception as e:
-        print(f"❌ LINEへのメッセージ送信に失敗しました: {e}")
-        if response is not None:
-            print(f"詳細エラー内容: {response.text}")
+        print(f"❌ LINE送信失敗: {e}")
 
 def check_price():
     """価格をチェックするメイン処理"""
+    # 対象URL: iPhone 15 128GB クッキー
     target_url = "https://kakaku.com/item/K0001540961/" 
     
     with sync_playwright() as p:
+        # User-Agentを設定して「ロボット感」を減らし、ブロックを防ぎます
         browser = p.chromium.launch(headless=True)
-        # 警告が出にくいコンテキスト作成
-        context = browser.new_context()
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
         page = context.new_page()
         
         try:
             print(f"URLにアクセス中: {target_url}")
-            page.goto(target_url, wait_until="domcontentloaded")
+            # ページ読み込み完了を待つ
+            page.goto(target_url, wait_until="networkidle", timeout=60000)
             
-            # 価格情報を取得（サイトの仕様変更に強い複数のセレクタで試行）
-            price_element = page.locator('span.priceTxt, .price, #price, .p-main_price_value').first
+            # 価格.comの最新の価格表示部分を狙い撃ち
+            # 1. 最安価格の数値部分 2. 税込価格 などの候補を順に探す
+            selectors = [
+                "span.priceTxt", 
+                "span[itemprop='price']",
+                ".p-main_price_value",
+                "#price-box .price"
+            ]
             
-            if price_element.is_visible():
-                price = price_element.inner_text().strip()
-                message = f"【価格通知】\n現在の価格は {price} です。\n{target_url}"
-                print(f"取得メッセージ: {message}")
+            price = None
+            for selector in selectors:
+                element = page.locator(selector).first
+                if element.is_visible():
+                    price = element.inner_text().strip()
+                    break
+            
+            if price:
+                message = f"【価格通知】\n現在の最安価格は {price} です。\n{target_url}"
+                print(f"取得成功: {price}")
                 send_line_message(message)
             else:
-                raise Exception("価格の要素が見つかりませんでした。")
+                # 画面のスクリーンショットを撮ってログに残す（デバッグ用）
+                print("❌ 価格要素が見つかりませんでした。")
+                send_line_message("⚠️ 価格.comのサイト構造が変わったため、価格を取得できませんでした。")
                 
         except Exception as e:
-            error_msg = f"⚠️ 価格取得中にエラーが発生しました:\n{str(e)}"
+            error_msg = f"⚠️ エラー発生:\n{str(e)}"
             print(error_msg)
             send_line_message(error_msg)
         finally:
