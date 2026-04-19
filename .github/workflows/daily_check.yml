@@ -1,0 +1,29 @@
+name: Price Patrol
+
+on:
+  schedule:
+    # 毎日 日本時間の朝9時と夜21時に自動実行 (UTC 0:00, 12:00)
+    - cron: '0 0,12 * * *'
+  workflow_dispatch: # 手動で実行するボタンを出す設定
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright requests
+          playwright install chromium
+
+      - name: Run bot
+        env:
+          LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
+          USER_ID: ${{ secrets.USER_ID }}
+        run: python main_bot.py
