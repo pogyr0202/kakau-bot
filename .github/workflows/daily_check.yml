@@ -2,9 +2,8 @@ name: Price Patrol
 
 on:
   schedule:
-    # 毎日 日本時間の朝9時と夜21時に自動実行 (UTC 0:00, 12:00)
     - cron: '0 0,12 * * *'
-  workflow_dispatch: # 手動で実行するボタンを出す設定
+  workflow_dispatch:
 
 jobs:
   build:
@@ -24,6 +23,7 @@ jobs:
 
       - name: Run bot
         env:
-          LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
+          # GitHubのSettings > Secretsに登録した名前と一致させる
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           USER_ID: ${{ secrets.USER_ID }}
         run: python main_bot.py
