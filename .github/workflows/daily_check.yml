@@ -3,7 +3,7 @@ name: Price Patrol
 on:
   schedule:
     - cron: '0 0,12 * * *'
-  workflow_dispatch: # 手動実行用ボタン
+  workflow_dispatch:
 
 jobs:
   build:
