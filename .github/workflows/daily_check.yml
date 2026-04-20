@@ -3,26 +3,21 @@ name: Price Patrol
 on:
   schedule:
     - cron: '0 0,12 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # 手動実行用ボタン
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # 最新のバージョン(v4)にアップデート
       - uses: actions/checkout@v4
-
-      # 最新のバージョン(v5)にアップデート
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
       - name: Install dependencies
         run: |
           pip install playwright requests
           playwright install chromium
-
       - name: Run bot
         env:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
